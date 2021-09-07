@@ -86,7 +86,7 @@ public class GuiItemStack {
 		this.item = item;
 	}
 
-	public void onClick(InventoryClickEvent e) {
+	public void onClick(InventoryClickEvent event) {
 	}
 
 	public ItemStack getItem() {

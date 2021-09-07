@@ -54,6 +54,10 @@ public class GuiInventory implements InventoryHolder {
 		locked = false;
 	}
 
+	public void openIventory(Player viewer) {
+		viewer.openInventory(inv);
+	}
+
 	public boolean isViewing(Player viewer) {
 		return viewer != null && viewer.isOnline() && viewer.getOpenInventory().getTopInventory().getHolder() == this;
 	}
