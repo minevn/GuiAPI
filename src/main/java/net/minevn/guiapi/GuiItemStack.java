@@ -27,6 +27,10 @@ public class GuiItemStack {
 		this(material, name, Arrays.asList(lores));
 	}
 
+	public GuiItemStack(Material material, int amount, String name, String... lores) {
+		this(material, amount, name, Arrays.asList(lores));
+	}
+
 	public GuiItemStack(Player skullOwner, String name, String... lores) {
 		this(skullOwner, 1, false, name, Arrays.asList(lores));
 	}
@@ -42,7 +46,8 @@ public class GuiItemStack {
 	public GuiItemStack(Player skullOwner, int amount, boolean glow, String name, List<String> lores) {
 		this(XMaterial.PLAYER_HEAD.parseMaterial(), XMaterial.PLAYER_HEAD.getData(), amount, glow, name, lores);
 		SkullMeta sm = (SkullMeta) item.getItemMeta();
-		sm.setOwningPlayer(skullOwner);
+//		sm.setOwningPlayer(skullOwner);
+		sm.setPlayerProfile(skullOwner.getPlayerProfile());
 		item.setItemMeta(sm);
 	}
 
