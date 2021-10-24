@@ -14,6 +14,7 @@ import java.util.List;
 
 public class GuiItemStack {
 	private ItemStack item;
+	private ClickAction action = null;
 
 	public GuiItemStack(Material material, int amount) {
 		item = new ItemStack(material, amount);
@@ -95,6 +96,12 @@ public class GuiItemStack {
 	}
 
 	public void onClick(InventoryClickEvent event) {
+		if (action != null) action.onClick(event);
+	}
+
+	public GuiItemStack onClick(ClickAction action) {
+		this.action = action;
+		return this;
 	}
 
 	public ItemStack getItem() {
