@@ -69,15 +69,24 @@ public class GuiItemStack {
 		item.setItemMeta(im);
 	}
 
-	public GuiItemStack(Material material, short data, String name, String... lores) {
-		item = new ItemStack(material, 1, data);
+	public GuiItemStack(Material material, short data, int amount, String name, List<String> lores) {
+		item = new ItemStack(material, amount, data);
 		ItemMeta im = item.getItemMeta();
 		im.setDisplayName(name);
-		if (lores != null && lores.length > 0)
-			im.setLore(Arrays.asList(lores));
+		if (lores != null && lores.size() > 0) {
+			im.setLore(lores);
+		}
 		im.setUnbreakable(true);
 		im.addItemFlags(ItemFlag.HIDE_UNBREAKABLE, ItemFlag.HIDE_ATTRIBUTES);
 		item.setItemMeta(im);
+	}
+
+	public GuiItemStack(Material material, short data, int amount, String name, String... lores) {
+		this(material, data, amount, name, Arrays.asList(lores));
+	}
+
+	public GuiItemStack(Material material, short data, String name, String... lores) {
+		this(material, data, 1, name, lores);
 	}
 
 	public GuiItemStack(ItemStack item, String name, String... lores) {
