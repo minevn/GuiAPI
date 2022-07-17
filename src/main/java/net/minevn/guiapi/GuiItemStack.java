@@ -70,11 +70,18 @@ public class GuiItemStack {
 	}
 
 	public GuiItemStack(Material material, short data, int amount, String name, List<String> lores) {
+		this(material, data, amount, false, name, lores);
+	}
+
+	public GuiItemStack(Material material, short data, int amount, boolean glow, String name, List<String> lores) {
 		item = new ItemStack(material, amount, data);
 		ItemMeta im = item.getItemMeta();
 		im.setDisplayName(name);
 		if (lores != null && lores.size() > 0) {
 			im.setLore(lores);
+		}
+		if (glow) {
+			im.addEnchant(Enchantment.DURABILITY, 1, true);
 		}
 		im.setUnbreakable(true);
 		im.addItemFlags(ItemFlag.HIDE_UNBREAKABLE, ItemFlag.HIDE_ATTRIBUTES);
@@ -87,6 +94,10 @@ public class GuiItemStack {
 
 	public GuiItemStack(Material material, short data, String name, String... lores) {
 		this(material, data, 1, name, lores);
+	}
+
+	public GuiItemStack(Material material, short data, int amount, boolean glow, String name, String... lores) {
+		this(material, data, amount, glow, name, Arrays.asList(lores));
 	}
 
 	public GuiItemStack(ItemStack item, String name, String... lores) {

@@ -2,7 +2,7 @@
  * The MIT License (MIT)
  *
  * Copyright (c) 2018 Hex_27
- * Copyright (c) 2021 Crypto Morin
+ * Copyright (c) 2022 Crypto Morin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,21 +25,21 @@ package net.minevn.guiapi;
 import com.google.common.base.Enums;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
-import org.apache.commons.lang.StringUtils;
-import org.apache.commons.lang.Validate;
-import org.apache.commons.lang.WordUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.inventory.meta.SpawnEggMeta;
+import org.bukkit.potion.Potion;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
+import java.util.stream.Collectors;
 
 /**
  * <b>XMaterial</b> - Data Values/Pre-flattening<br>
@@ -61,18 +61,19 @@ import java.util.regex.PatternSyntaxException;
  * <b>/give @p minecraft:dirt 1 10</b> where 1 is the item amount, and 10 is the data value. The material {@link #DIRT} with a data value of {@code 10} doesn't exist.
  *
  * @author Crypto Morin
- * @version 10.1.0
+ * @version 11.0.0
  * @see Material
  * @see ItemStack
  */
 public enum XMaterial {
 	ACACIA_BOAT("BOAT_ACACIA"),
 	ACACIA_BUTTON("WOOD_BUTTON"),
+	ACACIA_CHEST_BOAT,
 	ACACIA_DOOR("ACACIA_DOOR", "ACACIA_DOOR_ITEM"),
 	ACACIA_FENCE,
 	ACACIA_FENCE_GATE,
-	ACACIA_LEAVES("LEAVES_2"),
-	ACACIA_LOG("LOG_2"),
+	ACACIA_LEAVES(4, "LEAVES_2"),
+	ACACIA_LOG(4, "LOG_2"),
 	ACACIA_PLANKS(4, "WOOD"),
 	ACACIA_PRESSURE_PLATE("WOOD_PLATE"),
 	ACACIA_SAPLING(4, "SAPLING"),
@@ -81,15 +82,17 @@ public enum XMaterial {
 	ACACIA_STAIRS,
 	ACACIA_TRAPDOOR("TRAP_DOOR"),
 	ACACIA_WALL_SIGN("WALL_SIGN"),
-	ACACIA_WOOD("LOG_2"),
+	ACACIA_WOOD(4, "LOG_2"),
 	ACTIVATOR_RAIL,
 	/**
 	 * https://minecraft.gamepedia.com/Air
+	 * {@link Material#isAir()}
 	 *
 	 * @see #VOID_AIR
 	 * @see #CAVE_AIR
 	 */
 	AIR,
+	ALLAY_SPAWN_EGG,
 	ALLIUM(2, "RED_ROSE"),
 	AMETHYST_BLOCK,
 	AMETHYST_CLUSTER,
@@ -135,6 +138,7 @@ public enum XMaterial {
 	BIG_DRIPLEAF_STEM,
 	BIRCH_BOAT("BOAT_BIRCH"),
 	BIRCH_BUTTON("WOOD_BUTTON"),
+	BIRCH_CHEST_BOAT,
 	BIRCH_DOOR("BIRCH_DOOR", "BIRCH_DOOR_ITEM"),
 	BIRCH_FENCE,
 	BIRCH_FENCE_GATE,
@@ -154,13 +158,16 @@ public enum XMaterial {
 	BLACKSTONE_STAIRS,
 	BLACKSTONE_WALL,
 	BLACK_BANNER("STANDING_BANNER", "BANNER"),
-	BLACK_BED(15, "BED_BLOCK", "BED"),
+	/**
+	 * Version 1.12+ interprets "BED" as BLACK_BED due to enum alphabetic ordering.
+	 */
+	BLACK_BED(supports(12) ? 15 : 0, "BED_BLOCK", "BED"),
 	BLACK_CANDLE,
 	BLACK_CANDLE_CAKE,
 	BLACK_CARPET(15, "CARPET"),
 	BLACK_CONCRETE(15, "CONCRETE"),
 	BLACK_CONCRETE_POWDER(15, "CONCRETE_POWDER"),
-	BLACK_DYE("INK_SACK", "INK_SAC"),
+	BLACK_DYE,
 	BLACK_GLAZED_TERRACOTTA,
 	BLACK_SHULKER_BOX,
 	BLACK_STAINED_GLASS(15, "STAINED_GLASS"),
@@ -173,7 +180,7 @@ public enum XMaterial {
 	BLAZE_ROD,
 	BLAZE_SPAWN_EGG(61, "MONSTER_EGG"),
 	BLUE_BANNER(4, "STANDING_BANNER", "BANNER"),
-	BLUE_BED(11, "BED_BLOCK", "BED"),
+	BLUE_BED(supports(12) ? 11 : 0, "BED_BLOCK", "BED"),
 	BLUE_CANDLE,
 	BLUE_CANDLE_CAKE,
 	BLUE_CARPET(11, "CARPET"),
@@ -208,7 +215,7 @@ public enum XMaterial {
 	BRICK_STAIRS,
 	BRICK_WALL,
 	BROWN_BANNER(3, "STANDING_BANNER", "BANNER"),
-	BROWN_BED(12, "BED_BLOCK", "BED"),
+	BROWN_BED(supports(12) ? 12 : 0, "BED_BLOCK", "BED"),
 	BROWN_CANDLE,
 	BROWN_CANDLE_CAKE,
 	BROWN_CARPET(12, "CARPET"),
@@ -276,7 +283,7 @@ public enum XMaterial {
 	CHORUS_FLOWER,
 	CHORUS_FRUIT,
 	CHORUS_PLANT,
-	CLAY("HARD_CLAY"),
+	CLAY,
 	CLAY_BALL,
 	CLOCK("WATCH"),
 	COAL,
@@ -314,7 +321,7 @@ public enum XMaterial {
 	COOKED_CHICKEN,
 	COOKED_COD("COOKED_FISH"),
 	COOKED_MUTTON,
-	COOKED_PORKCHOP("PORK", "GRILLED_PORK"),
+	COOKED_PORKCHOP("GRILLED_PORK"),
 	COOKED_RABBIT,
 	COOKED_SALMON(1, "COOKED_FISH"),
 	COOKIE,
@@ -357,9 +364,9 @@ public enum XMaterial {
 	CUT_RED_SANDSTONE,
 	CUT_RED_SANDSTONE_SLAB("STONE_SLAB2"),
 	CUT_SANDSTONE,
-	CUT_SANDSTONE_SLAB("STEP"),
+	CUT_SANDSTONE_SLAB(1, "STEP"),
 	CYAN_BANNER(6, "STANDING_BANNER", "BANNER"),
-	CYAN_BED(9, "BED_BLOCK", "BED"),
+	CYAN_BED(supports(12) ? 9 : 0, "BED_BLOCK", "BED"),
 	CYAN_CANDLE,
 	CYAN_CANDLE_CAKE,
 	CYAN_CARPET(9, "CARPET"),
@@ -377,11 +384,12 @@ public enum XMaterial {
 	DANDELION("YELLOW_FLOWER"),
 	DARK_OAK_BOAT("BOAT_DARK_OAK"),
 	DARK_OAK_BUTTON("WOOD_BUTTON"),
+	DARK_OAK_CHEST_BOAT,
 	DARK_OAK_DOOR("DARK_OAK_DOOR", "DARK_OAK_DOOR_ITEM"),
 	DARK_OAK_FENCE,
 	DARK_OAK_FENCE_GATE,
-	DARK_OAK_LEAVES(1, "LEAVES_2"),
-	DARK_OAK_LOG(1, "LOG_2"),
+	DARK_OAK_LEAVES(5, "LEAVES_2"),
+	DARK_OAK_LOG(5, "LOG_2"),
 	DARK_OAK_PLANKS(5, "WOOD"),
 	DARK_OAK_PRESSURE_PLATE("WOOD_PLATE"),
 	DARK_OAK_SAPLING(5, "SAPLING"),
@@ -390,8 +398,8 @@ public enum XMaterial {
 	DARK_OAK_STAIRS,
 	DARK_OAK_TRAPDOOR("TRAP_DOOR"),
 	DARK_OAK_WALL_SIGN("WALL_SIGN"),
-	DARK_OAK_WOOD(1, "LOG_2"),
-	DARK_PRISMARINE(1, "PRISMARINE"),
+	DARK_OAK_WOOD(5, "LOG_2"),
+	DARK_PRISMARINE(2, "PRISMARINE"),
 	DARK_PRISMARINE_SLAB,
 	DARK_PRISMARINE_STAIRS,
 	DAYLIGHT_DETECTOR("DAYLIGHT_DETECTOR_INVERTED"),
@@ -457,18 +465,20 @@ public enum XMaterial {
 	 * Changed in 1.17
 	 */
 	DIRT_PATH("GRASS_PATH"),
+	DISC_FRAGMENT_5,
 	DISPENSER,
 	DOLPHIN_SPAWN_EGG,
 	DONKEY_SPAWN_EGG(32, "MONSTER_EGG"),
 	DRAGON_BREATH("DRAGONS_BREATH"),
 	DRAGON_EGG,
-	DRAGON_HEAD("SKULL", "SKULL_ITEM"),
+	DRAGON_HEAD(5, "SKULL", "SKULL_ITEM"),
 	DRAGON_WALL_HEAD(5, "SKULL", "SKULL_ITEM"),
 	DRIED_KELP,
 	DRIED_KELP_BLOCK,
 	DRIPSTONE_BLOCK,
 	DROPPER,
 	DROWNED_SPAWN_EGG,
+	ECHO_SHARD,
 	EGG,
 	ELDER_GUARDIAN_SPAWN_EGG(4, "MONSTER_EGG"),
 	ELYTRA,
@@ -490,8 +500,8 @@ public enum XMaterial {
 	END_ROD,
 	END_STONE("ENDER_STONE"),
 	END_STONE_BRICKS("END_BRICKS"),
-	END_STONE_BRICK_SLAB(6, "STEP"),
-	END_STONE_BRICK_STAIRS("SMOOTH_STAIRS"),
+	END_STONE_BRICK_SLAB,
+	END_STONE_BRICK_STAIRS,
 	END_STONE_BRICK_WALL,
 	EVOKER_SPAWN_EGG(34, "MONSTER_EGG"),
 	EXPERIENCE_BOTTLE("EXP_BOTTLE"),
@@ -527,6 +537,8 @@ public enum XMaterial {
 	FLOWER_BANNER_PATTERN,
 	FLOWER_POT("FLOWER_POT", "FLOWER_POT_ITEM"),
 	FOX_SPAWN_EGG,
+	FROGSPAWN,
+	FROG_SPAWN_EGG,
 	/**
 	 * This special material cannot be obtained as an item.
 	 */
@@ -548,6 +560,7 @@ public enum XMaterial {
 	GLOW_ITEM_FRAME,
 	GLOW_LICHEN,
 	GLOW_SQUID_SPAWN_EGG,
+	GOAT_HORN,
 	GOAT_SPAWN_EGG,
 	GOLDEN_APPLE,
 	GOLDEN_AXE("GOLD_AXE"),
@@ -573,7 +586,7 @@ public enum XMaterial {
 	GRASS_BLOCK("GRASS"),
 	GRAVEL,
 	GRAY_BANNER(8, "STANDING_BANNER", "BANNER"),
-	GRAY_BED(7, "BED_BLOCK", "BED"),
+	GRAY_BED(supports(12) ? 7 : 0, "BED_BLOCK", "BED"),
 	GRAY_CANDLE,
 	GRAY_CANDLE_CAKE,
 	GRAY_CARPET(7, "CARPET"),
@@ -588,12 +601,16 @@ public enum XMaterial {
 	GRAY_WALL_BANNER(8, "WALL_BANNER"),
 	GRAY_WOOL(7, "WOOL"),
 	GREEN_BANNER(2, "STANDING_BANNER", "BANNER"),
-	GREEN_BED(13, "BED_BLOCK", "BED"),
+	GREEN_BED(supports(12) ? 13 : 0, "BED_BLOCK", "BED"),
 	GREEN_CANDLE,
 	GREEN_CANDLE_CAKE,
 	GREEN_CARPET(13, "CARPET"),
 	GREEN_CONCRETE(13, "CONCRETE"),
 	GREEN_CONCRETE_POWDER(13, "CONCRETE_POWDER"),
+	/**
+	 * 1.13 renamed to CACTUS_GREEN
+	 * 1.14 renamed to GREEN_DYE
+	 */
 	GREEN_DYE(2, "INK_SACK", "CACTUS_GREEN"),
 	GREEN_GLAZED_TERRACOTTA,
 	GREEN_SHULKER_BOX,
@@ -659,6 +676,7 @@ public enum XMaterial {
 	JUKEBOX,
 	JUNGLE_BOAT("BOAT_JUNGLE"),
 	JUNGLE_BUTTON("WOOD_BUTTON"),
+	JUNGLE_CHEST_BOAT,
 	JUNGLE_DOOR("JUNGLE_DOOR", "JUNGLE_DOOR_ITEM"),
 	JUNGLE_FENCE,
 	JUNGLE_FENCE_GATE,
@@ -698,7 +716,7 @@ public enum XMaterial {
 	LIGHT,
 	LIGHTNING_ROD,
 	LIGHT_BLUE_BANNER(12, "STANDING_BANNER", "BANNER"),
-	LIGHT_BLUE_BED(3, "BED_BLOCK", "BED"),
+	LIGHT_BLUE_BED(supports(12) ? 3 : 0, "BED_BLOCK", "BED"),
 	LIGHT_BLUE_CANDLE,
 	LIGHT_BLUE_CANDLE_CAKE,
 	LIGHT_BLUE_CARPET(3, "CARPET"),
@@ -713,7 +731,7 @@ public enum XMaterial {
 	LIGHT_BLUE_WALL_BANNER(12, "WALL_BANNER", "STANDING_BANNER", "BANNER"),
 	LIGHT_BLUE_WOOL(3, "WOOL"),
 	LIGHT_GRAY_BANNER(7, "STANDING_BANNER", "BANNER"),
-	LIGHT_GRAY_BED(8, "BED_BLOCK", "BED"),
+	LIGHT_GRAY_BED(supports(12) ? 8 : 0, "BED_BLOCK", "BED"),
 	LIGHT_GRAY_CANDLE,
 	LIGHT_GRAY_CANDLE_CAKE,
 	LIGHT_GRAY_CARPET(8, "CARPET"),
@@ -724,7 +742,7 @@ public enum XMaterial {
 	 * Renamed to SILVER_GLAZED_TERRACOTTA in 1.12
 	 * Renamed to LIGHT_GRAY_GLAZED_TERRACOTTA in 1.14
 	 */
-	LIGHT_GRAY_GLAZED_TERRACOTTA("STAINED_CLAY", "LIGHT_GRAY_TERRACOTTA", "SILVER_GLAZED_TERRACOTTA"),
+	LIGHT_GRAY_GLAZED_TERRACOTTA("SILVER_GLAZED_TERRACOTTA"),
 	LIGHT_GRAY_SHULKER_BOX("SILVER_SHULKER_BOX"),
 	LIGHT_GRAY_STAINED_GLASS(8, "STAINED_GLASS"),
 	LIGHT_GRAY_STAINED_GLASS_PANE(8, "THIN_GLASS", "STAINED_GLASS_PANE"),
@@ -736,7 +754,7 @@ public enum XMaterial {
 	LILY_OF_THE_VALLEY,
 	LILY_PAD("WATER_LILY"),
 	LIME_BANNER(10, "STANDING_BANNER", "BANNER"),
-	LIME_BED(5, "BED_BLOCK", "BED"),
+	LIME_BED(supports(12) ? 5 : 0, "BED_BLOCK", "BED"),
 	LIME_CANDLE,
 	LIME_CANDLE_CAKE,
 	LIME_CARPET(5, "CARPET"),
@@ -755,7 +773,7 @@ public enum XMaterial {
 	LODESTONE,
 	LOOM,
 	MAGENTA_BANNER(13, "STANDING_BANNER", "BANNER"),
-	MAGENTA_BED(2, "BED_BLOCK", "BED"),
+	MAGENTA_BED(supports(12) ? 2 : 0, "BED_BLOCK", "BED"),
 	MAGENTA_CANDLE,
 	MAGENTA_CANDLE_CAKE,
 	MAGENTA_CARPET(2, "CARPET"),
@@ -772,6 +790,24 @@ public enum XMaterial {
 	MAGMA_BLOCK("MAGMA"),
 	MAGMA_CREAM,
 	MAGMA_CUBE_SPAWN_EGG(62, "MONSTER_EGG"),
+	MANGROVE_BOAT,
+	MANGROVE_BUTTON,
+	MANGROVE_CHEST_BOAT,
+	MANGROVE_DOOR,
+	MANGROVE_FENCE,
+	MANGROVE_FENCE_GATE,
+	MANGROVE_LEAVES,
+	MANGROVE_LOG,
+	MANGROVE_PLANKS,
+	MANGROVE_PRESSURE_PLATE,
+	MANGROVE_PROPAGULE,
+	MANGROVE_ROOTS,
+	MANGROVE_SIGN,
+	MANGROVE_SLAB,
+	MANGROVE_STAIRS,
+	MANGROVE_TRAPDOOR,
+	MANGROVE_WALL_SIGN,
+	MANGROVE_WOOD,
 	/**
 	 * Adding this to the duplicated list will give you a filled map
 	 * for 1.13+ versions and removing it from duplicated list will
@@ -790,32 +826,40 @@ public enum XMaterial {
 	MOJANG_BANNER_PATTERN,
 	MOOSHROOM_SPAWN_EGG(96, "MONSTER_EGG"),
 	MOSSY_COBBLESTONE,
-	MOSSY_COBBLESTONE_SLAB(3, "STEP"),
+	MOSSY_COBBLESTONE_SLAB(),
 	MOSSY_COBBLESTONE_STAIRS,
 	MOSSY_COBBLESTONE_WALL(1, "COBBLE_WALL", "COBBLESTONE_WALL"),
 	MOSSY_STONE_BRICKS(1, "SMOOTH_BRICK"),
-	MOSSY_STONE_BRICK_SLAB(5, "STEP"),
-	MOSSY_STONE_BRICK_STAIRS("SMOOTH_STAIRS"),
+	MOSSY_STONE_BRICK_SLAB,
+	MOSSY_STONE_BRICK_STAIRS,
 	MOSSY_STONE_BRICK_WALL,
 	MOSS_BLOCK,
 	MOSS_CARPET,
 	MOVING_PISTON("PISTON_MOVING_PIECE"),
+	MUD,
+	MUDDY_MANGROVE_ROOTS,
+	MUD_BRICKS,
+	MUD_BRICK_SLAB,
+	MUD_BRICK_STAIRS,
+	MUD_BRICK_WALL,
 	MULE_SPAWN_EGG(32, "MONSTER_EGG"),
 	MUSHROOM_STEM("BROWN_MUSHROOM"),
 	MUSHROOM_STEW("MUSHROOM_SOUP"),
-	MUSIC_DISC_11("GOLD_RECORD"),
-	MUSIC_DISC_13("GREEN_RECORD"),
+	MUSIC_DISC_11("RECORD_11"),
+	MUSIC_DISC_13("GOLD_RECORD"),
+	MUSIC_DISC_5,
 	MUSIC_DISC_BLOCKS("RECORD_3"),
-	MUSIC_DISC_CAT("RECORD_4"),
-	MUSIC_DISC_CHIRP("RECORD_5"),
-	MUSIC_DISC_FAR("RECORD_6"),
-	MUSIC_DISC_MALL("RECORD_7"),
-	MUSIC_DISC_MELLOHI("RECORD_8"),
+	MUSIC_DISC_CAT("GREEN_RECORD"),
+	MUSIC_DISC_CHIRP("RECORD_4"),
+	MUSIC_DISC_FAR("RECORD_5"),
+	MUSIC_DISC_MALL("RECORD_6"),
+	MUSIC_DISC_MELLOHI("RECORD_7"),
+	MUSIC_DISC_OTHERSIDE,
 	MUSIC_DISC_PIGSTEP,
-	MUSIC_DISC_STAL("RECORD_9"),
-	MUSIC_DISC_STRAD("RECORD_10"),
-	MUSIC_DISC_WAIT("RECORD_11"),
-	MUSIC_DISC_WARD("RECORD_12"),
+	MUSIC_DISC_STAL("RECORD_8"),
+	MUSIC_DISC_STRAD("RECORD_9"),
+	MUSIC_DISC_WAIT("RECORD_12"),
+	MUSIC_DISC_WARD("RECORD_10"),
 	MUTTON,
 	MYCELIUM("MYCEL"),
 	NAME_TAG,
@@ -854,6 +898,7 @@ public enum XMaterial {
 	NOTE_BLOCK,
 	OAK_BOAT("BOAT"),
 	OAK_BUTTON("WOOD_BUTTON"),
+	OAK_CHEST_BOAT,
 	OAK_DOOR("WOODEN_DOOR", "WOOD_DOOR"),
 	OAK_FENCE("FENCE"),
 	OAK_FENCE_GATE("FENCE_GATE"),
@@ -871,8 +916,9 @@ public enum XMaterial {
 	OBSERVER,
 	OBSIDIAN,
 	OCELOT_SPAWN_EGG(98, "MONSTER_EGG"),
+	OCHRE_FROGLIGHT,
 	ORANGE_BANNER(14, "STANDING_BANNER", "BANNER"),
-	ORANGE_BED(1, "BED_BLOCK", "BED"),
+	ORANGE_BED(supports(12) ? 1 : 0, "BED_BLOCK", "BED"),
 	ORANGE_CANDLE,
 	ORANGE_CANDLE_CAKE,
 	ORANGE_CARPET(1, "CARPET"),
@@ -893,10 +939,12 @@ public enum XMaterial {
 	OXIDIZED_CUT_COPPER_SLAB,
 	OXIDIZED_CUT_COPPER_STAIRS,
 	PACKED_ICE,
+	PACKED_MUD,
 	PAINTING,
 	PANDA_SPAWN_EGG,
 	PAPER,
 	PARROT_SPAWN_EGG(105, "MONSTER_EGG"),
+	PEARLESCENT_FROGLIGHT,
 	PEONY(5, "DOUBLE_PLANT"),
 	PETRIFIED_OAK_SLAB("WOOD_STEP"),
 	PHANTOM_MEMBRANE,
@@ -907,7 +955,7 @@ public enum XMaterial {
 	PIG_SPAWN_EGG(90, "MONSTER_EGG"),
 	PILLAGER_SPAWN_EGG,
 	PINK_BANNER(9, "STANDING_BANNER", "BANNER"),
-	PINK_BED(6, "BED_BLOCK", "BED"),
+	PINK_BED(supports(12) ? 6 : 0, "BED_BLOCK", "BED"),
 	PINK_CANDLE,
 	PINK_CANDLE_CAKE,
 	PINK_CARPET(6, "CARPET"),
@@ -979,6 +1027,7 @@ public enum XMaterial {
 	POTTED_FLOWERING_AZALEA_BUSH,
 	POTTED_JUNGLE_SAPLING(3, "FLOWER_POT"),
 	POTTED_LILY_OF_THE_VALLEY,
+	POTTED_MANGROVE_PROPAGULE,
 	POTTED_OAK_SAPLING("FLOWER_POT"),
 	POTTED_ORANGE_TULIP(5, "RED_ROSE", "FLOWER_POT"),
 	POTTED_OXEYE_DAISY(8, "RED_ROSE", "FLOWER_POT"),
@@ -996,8 +1045,8 @@ public enum XMaterial {
 	POWDER_SNOW_CAULDRON,
 	POWERED_RAIL,
 	PRISMARINE,
-	PRISMARINE_BRICKS(2, "PRISMARINE"),
-	PRISMARINE_BRICK_SLAB(4, "STEP"),
+	PRISMARINE_BRICKS(1, "PRISMARINE"),
+	PRISMARINE_BRICK_SLAB,
 	PRISMARINE_BRICK_STAIRS,
 	PRISMARINE_CRYSTALS,
 	PRISMARINE_SHARD,
@@ -1012,7 +1061,7 @@ public enum XMaterial {
 	PUMPKIN_SEEDS,
 	PUMPKIN_STEM,
 	PURPLE_BANNER(5, "STANDING_BANNER", "BANNER"),
-	PURPLE_BED(10, "BED_BLOCK", "BED"),
+	PURPLE_BED(supports(12) ? 10 : 0, "BED_BLOCK", "BED"),
 	PURPLE_CANDLE,
 	PURPLE_CANDLE_CAKE,
 	PURPLE_CARPET(10, "CARPET"),
@@ -1049,6 +1098,7 @@ public enum XMaterial {
 	RAW_GOLD_BLOCK,
 	RAW_IRON,
 	RAW_IRON_BLOCK,
+	RECOVERY_COMPASS,
 	REDSTONE,
 	REDSTONE_BLOCK,
 	/**
@@ -1071,7 +1121,7 @@ public enum XMaterial {
 	/**
 	 * Data value 14 or 0
 	 */
-	RED_BED(14, "BED_BLOCK", "BED"),
+	RED_BED(supports(12) ? 14 : 0, "BED_BLOCK", "BED"),
 	RED_CANDLE,
 	RED_CANDLE_CAKE,
 	RED_CARPET(14, "CARPET"),
@@ -1082,7 +1132,7 @@ public enum XMaterial {
 	RED_MUSHROOM,
 	RED_MUSHROOM_BLOCK("RED_MUSHROOM", "HUGE_MUSHROOM_2"),
 	RED_NETHER_BRICKS("RED_NETHER_BRICK"),
-	RED_NETHER_BRICK_SLAB(4, "STEP"),
+	RED_NETHER_BRICK_SLAB,
 	RED_NETHER_BRICK_STAIRS,
 	RED_NETHER_BRICK_WALL,
 	RED_SAND(1, "SAND"),
@@ -1097,6 +1147,7 @@ public enum XMaterial {
 	RED_TULIP(4, "RED_ROSE"),
 	RED_WALL_BANNER(1, "WALL_BANNER"),
 	RED_WOOL(14, "WOOL"),
+	REINFORCED_DEEPSLATE,
 	REPEATER("DIODE_BLOCK_ON", "DIODE_BLOCK_OFF", "DIODE"),
 	REPEATING_COMMAND_BLOCK("COMMAND", "COMMAND_REPEATING"),
 	RESPAWN_ANCHOR,
@@ -1113,7 +1164,11 @@ public enum XMaterial {
 	SANDSTONE_STAIRS,
 	SANDSTONE_WALL,
 	SCAFFOLDING,
+	SCULK,
+	SCULK_CATALYST,
 	SCULK_SENSOR,
+	SCULK_SHRIEKER,
+	SCULK_VEIN,
 	SCUTE,
 	SEAGRASS,
 	SEA_LANTERN,
@@ -1140,16 +1195,16 @@ public enum XMaterial {
 	SMOKER,
 	SMOOTH_BASALT,
 	SMOOTH_QUARTZ,
-	SMOOTH_QUARTZ_SLAB(7, "STEP"),
+	SMOOTH_QUARTZ_SLAB,
 	SMOOTH_QUARTZ_STAIRS,
 	SMOOTH_RED_SANDSTONE(2, "RED_SANDSTONE"),
 	SMOOTH_RED_SANDSTONE_SLAB("STONE_SLAB2"),
 	SMOOTH_RED_SANDSTONE_STAIRS,
 	SMOOTH_SANDSTONE(2, "SANDSTONE"),
-	SMOOTH_SANDSTONE_SLAB("STEP"),
+	SMOOTH_SANDSTONE_SLAB,
 	SMOOTH_SANDSTONE_STAIRS,
-	SMOOTH_STONE("STEP"),
-	SMOOTH_STONE_SLAB("STEP"),
+	SMOOTH_STONE,
+	SMOOTH_STONE_SLAB,
 	SNOW,
 	SNOWBALL("SNOW_BALL"),
 	SNOW_BLOCK,
@@ -1169,6 +1224,7 @@ public enum XMaterial {
 	SPORE_BLOSSOM,
 	SPRUCE_BOAT("BOAT_SPRUCE"),
 	SPRUCE_BUTTON("WOOD_BUTTON"),
+	SPRUCE_CHEST_BOAT,
 	SPRUCE_DOOR("SPRUCE_DOOR", "SPRUCE_DOOR_ITEM"),
 	SPRUCE_FENCE,
 	SPRUCE_FENCE_GATE,
@@ -1191,7 +1247,7 @@ public enum XMaterial {
 	STONECUTTER,
 	STONE_AXE,
 	STONE_BRICKS("SMOOTH_BRICK"),
-	STONE_BRICK_SLAB(4, "DOUBLE_STEP", "STEP", "STONE_SLAB"),
+	STONE_BRICK_SLAB(5, "DOUBLE_STEP", "STEP", "STONE_SLAB"),
 	STONE_BRICK_STAIRS("SMOOTH_STAIRS"),
 	STONE_BRICK_WALL,
 	STONE_BUTTON,
@@ -1205,20 +1261,22 @@ public enum XMaterial {
 	STRAY_SPAWN_EGG(6, "MONSTER_EGG"),
 	STRIDER_SPAWN_EGG,
 	STRING,
-	STRIPPED_ACACIA_LOG("LOG_2"),
-	STRIPPED_ACACIA_WOOD("LOG_2"),
-	STRIPPED_BIRCH_LOG(2, "LOG"),
-	STRIPPED_BIRCH_WOOD(2, "LOG"),
+	STRIPPED_ACACIA_LOG,
+	STRIPPED_ACACIA_WOOD,
+	STRIPPED_BIRCH_LOG,
+	STRIPPED_BIRCH_WOOD,
 	STRIPPED_CRIMSON_HYPHAE,
 	STRIPPED_CRIMSON_STEM,
-	STRIPPED_DARK_OAK_LOG("LOG"),
-	STRIPPED_DARK_OAK_WOOD("LOG"),
-	STRIPPED_JUNGLE_LOG(3, "LOG"),
-	STRIPPED_JUNGLE_WOOD(3, "LOG"),
-	STRIPPED_OAK_LOG("LOG"),
-	STRIPPED_OAK_WOOD("LOG"),
-	STRIPPED_SPRUCE_LOG(1, "LOG"),
-	STRIPPED_SPRUCE_WOOD(1, "LOG"),
+	STRIPPED_DARK_OAK_LOG,
+	STRIPPED_DARK_OAK_WOOD,
+	STRIPPED_JUNGLE_LOG,
+	STRIPPED_JUNGLE_WOOD,
+	STRIPPED_MANGROVE_LOG,
+	STRIPPED_MANGROVE_WOOD,
+	STRIPPED_OAK_LOG,
+	STRIPPED_OAK_WOOD,
+	STRIPPED_SPRUCE_LOG,
+	STRIPPED_SPRUCE_WOOD,
 	STRIPPED_WARPED_HYPHAE,
 	STRIPPED_WARPED_STEM,
 	STRUCTURE_BLOCK,
@@ -1236,10 +1294,12 @@ public enum XMaterial {
 	SUSPICIOUS_STEW,
 	SWEET_BERRIES,
 	SWEET_BERRY_BUSH,
+	TADPOLE_BUCKET,
+	TADPOLE_SPAWN_EGG,
 	TALL_GRASS(2, "DOUBLE_PLANT"),
 	TALL_SEAGRASS,
 	TARGET,
-	TERRACOTTA("STAINED_CLAY"),
+	TERRACOTTA("HARD_CLAY"),
 	TINTED_GLASS,
 	TIPPED_ARROW,
 	TNT,
@@ -1264,6 +1324,7 @@ public enum XMaterial {
 	TURTLE_SPAWN_EGG,
 	TWISTING_VINES,
 	TWISTING_VINES_PLANT,
+	VERDANT_FROGLIGHT,
 	VEX_SPAWN_EGG(35, "MONSTER_EGG"),
 	VILLAGER_SPAWN_EGG(120, "MONSTER_EGG"),
 	VINDICATOR_SPAWN_EGG(36, "MONSTER_EGG"),
@@ -1276,6 +1337,7 @@ public enum XMaterial {
 	VOID_AIR("AIR"),
 	WALL_TORCH("TORCH"),
 	WANDERING_TRADER_SPAWN_EGG,
+	WARDEN_SPAWN_EGG,
 	WARPED_BUTTON,
 	WARPED_DOOR,
 	WARPED_FENCE,
@@ -1339,11 +1401,11 @@ public enum XMaterial {
 	WHITE_CONCRETE("CONCRETE"),
 	WHITE_CONCRETE_POWDER("CONCRETE_POWDER"),
 	WHITE_DYE(15, "INK_SACK", "BONE_MEAL"),
-	WHITE_GLAZED_TERRACOTTA("STAINED_CLAY"),
+	WHITE_GLAZED_TERRACOTTA,
 	WHITE_SHULKER_BOX,
 	WHITE_STAINED_GLASS("STAINED_GLASS"),
 	WHITE_STAINED_GLASS_PANE("THIN_GLASS", "STAINED_GLASS_PANE"),
-	WHITE_TERRACOTTA("STAINED_CLAY", "TERRACOTTA"),
+	WHITE_TERRACOTTA("STAINED_CLAY"),
 	WHITE_TULIP(6, "RED_ROSE"),
 	WHITE_WALL_BANNER(15, "WALL_BANNER"),
 	WHITE_WOOL("WOOL"),
@@ -1361,14 +1423,14 @@ public enum XMaterial {
 	WRITABLE_BOOK("BOOK_AND_QUILL"),
 	WRITTEN_BOOK,
 	YELLOW_BANNER(11, "STANDING_BANNER", "BANNER"),
-	YELLOW_BED(4, "BED_BLOCK", "BED"),
+	YELLOW_BED(supports(12) ? 4 : 0, "BED_BLOCK", "BED"),
 	YELLOW_CANDLE,
 	YELLOW_CANDLE_CAKE,
 	YELLOW_CARPET(4, "CARPET"),
 	YELLOW_CONCRETE(4, "CONCRETE"),
 	YELLOW_CONCRETE_POWDER(4, "CONCRETE_POWDER"),
 	YELLOW_DYE(11, "INK_SACK", "DANDELION_YELLOW"),
-	YELLOW_GLAZED_TERRACOTTA(4, "STAINED_CLAY", "YELLOW_TERRACOTTA"),
+	YELLOW_GLAZED_TERRACOTTA,
 	YELLOW_SHULKER_BOX,
 	YELLOW_STAINED_GLASS(4, "STAINED_GLASS"),
 	YELLOW_STAINED_GLASS_PANE(4, "THIN_GLASS", "STAINED_GLASS_PANE"),
@@ -1408,25 +1470,14 @@ public enum XMaterial {
 	private static final Cache<String, XMaterial> NAME_CACHE = CacheBuilder.newBuilder()
 			.expireAfterAccess(1, TimeUnit.HOURS)
 			.build();
-
 	/**
 	 * This is used for {@link #isOneOf(Collection)}
 	 *
 	 * @since 3.4.0
 	 */
-	private static final LoadingCache<String, Pattern> CACHED_REGEX = CacheBuilder.newBuilder()
+	private static final Cache<String, Pattern> CACHED_REGEX = CacheBuilder.newBuilder()
 			.expireAfterAccess(3, TimeUnit.HOURS)
-			.build(new CacheLoader<String, Pattern>() {
-				@Override
-				public Pattern load(@NotNull String str) {
-					try {
-						return Pattern.compile(str);
-					} catch (PatternSyntaxException ex) {
-						ex.printStackTrace();
-						return null;
-					}
-				}
-			});
+			.build();
 	/**
 	 * The maximum data value in the pre-flattening update which belongs to {@link #VILLAGER_SPAWN_EGG}<br>
 	 * https://minecraftitemids.com/types/spawn-egg
@@ -1492,7 +1543,7 @@ public enum XMaterial {
 	 *
 	 * @see #getLegacy()
 	 */
-	@NotNull
+	@Nonnull
 	private final String[] legacy;
 	/**
 	 * The cached Bukkit parsed material.
@@ -1503,7 +1554,7 @@ public enum XMaterial {
 	@Nullable
 	private final Material material;
 
-	XMaterial(int data, @NotNull String... legacy) {
+	XMaterial(int data, @Nonnull String... legacy) {
 		this.data = (byte) data;
 		this.legacy = legacy;
 
@@ -1517,9 +1568,7 @@ public enum XMaterial {
 		this.material = mat;
 	}
 
-	XMaterial(String... legacy) {
-		this(0, legacy);
-	}
+	XMaterial(String... legacy) {this(0, legacy);}
 
 	/**
 	 * Checks if the version is 1.13 Aquatic Update or higher.
@@ -1565,11 +1614,12 @@ public enum XMaterial {
 	 * without throwing an exception.
 	 *
 	 * @param name the name of the material.
+	 *
 	 * @return an optional that can be empty.
 	 * @since 5.1.0
 	 */
-	@NotNull
-	private static Optional<XMaterial> getIfPresent(@NotNull String name) {
+	@Nonnull
+	private static Optional<XMaterial> getIfPresent(@Nonnull String name) {
 		return Optional.ofNullable(NAMES.get(name));
 	}
 
@@ -1592,7 +1642,7 @@ public enum XMaterial {
 	 * @since 1.0.0
 	 */
 	@Nullable
-	private static XMaterial requestOldXMaterial(@NotNull String name, byte data) {
+	private static XMaterial requestOldXMaterial(@Nonnull String name, byte data) {
 		String holder = name + data;
 		XMaterial cache = NAME_CACHE.getIfPresent(holder);
 		if (cache != null) return cache;
@@ -1616,9 +1666,9 @@ public enum XMaterial {
 	 * @see #matchDefinedXMaterial(String, byte)
 	 * @since 2.0.0
 	 */
-	@NotNull
-	public static Optional<XMaterial> matchXMaterial(@NotNull String name) {
-		Validate.notEmpty(name, "Cannot match a material with null or empty material name");
+	@Nonnull
+	public static Optional<XMaterial> matchXMaterial(@Nonnull String name) {
+		if (name == null || name.isEmpty()) throw new IllegalArgumentException("Cannot match a material with null or empty material name");
 		Optional<XMaterial> oldMatch = matchXMaterialWithData(name);
 		return oldMatch.isPresent() ? oldMatch : matchDefinedXMaterial(format(name), UNKNOWN_DATA_VALUE);
 	}
@@ -1635,18 +1685,19 @@ public enum XMaterial {
 	 * </pre>
 	 *
 	 * @param name the material string that consists of the material name, data and separator character.
+	 *
 	 * @return the parsed XMaterial.
 	 * @see #matchXMaterial(String)
 	 * @since 3.0.0
 	 */
-	@NotNull
-	private static Optional<XMaterial> matchXMaterialWithData(@NotNull String name) {
+	@Nonnull
+	private static Optional<XMaterial> matchXMaterialWithData(@Nonnull String name) {
 		int index = name.indexOf(':');
 		if (index != -1) {
 			String mat = format(name.substring(0, index));
 			try {
 				// We don't use Byte.parseByte because we have our own range check.
-				byte data = (byte) Integer.parseInt(StringUtils.deleteWhitespace(name.substring(index + 1)));
+				byte data = (byte) Integer.parseInt(name.substring(index + 1).replace(" ", ""));
 				return data >= 0 && data < MAX_DATA_VALUE ? matchDefinedXMaterial(mat, data) : matchDefinedXMaterial(mat, UNKNOWN_DATA_VALUE);
 			} catch (NumberFormatException ignored) {
 				return matchDefinedXMaterial(mat, UNKNOWN_DATA_VALUE);
@@ -1664,8 +1715,8 @@ public enum XMaterial {
 	 * @see #matchXMaterial(ItemStack)
 	 * @since 2.0.0
 	 */
-	@NotNull
-	public static XMaterial matchXMaterial(@NotNull Material material) {
+	@Nonnull
+	public static XMaterial matchXMaterial(@Nonnull Material material) {
 		Objects.requireNonNull(material, "Cannot match null material");
 		return matchDefinedXMaterial(material.name(), UNKNOWN_DATA_VALUE)
 				.orElseThrow(() -> new IllegalArgumentException("Unsupported material with no data value: " + material.name()));
@@ -1676,23 +1727,49 @@ public enum XMaterial {
 	 * if not a damageable item {@link ItemStack#getDurability()}.
 	 *
 	 * @param item the ItemStack to match.
+	 *
 	 * @return an XMaterial if matched any.
 	 * @throws IllegalArgumentException may be thrown as an unexpected exception.
 	 * @see #matchXMaterial(Material)
 	 * @since 2.0.0
 	 */
-	@NotNull
+	@Nonnull
 	@SuppressWarnings("deprecation")
-	public static XMaterial matchXMaterial(@NotNull ItemStack item) {
+	public static XMaterial matchXMaterial(@Nonnull ItemStack item) {
 		Objects.requireNonNull(item, "Cannot match null ItemStack");
 		String material = item.getType().name();
 		byte data = (byte) (Data.ISFLAT || item.getType().getMaxDurability() > 0 ? 0 : item.getDurability());
 
-		// Check FILLED_MAP enum for more info.
-		//if (!Data.ISFLAT && item.hasItemMeta() && item.getItemMeta() instanceof org.bukkit.inventory.meta.MapMeta) return FILLED_MAP;
+		// Versions 1.9-1.12 didn't really use the items data value.
+		if (supports(9) && !supports(13) && item.hasItemMeta() && material.equals("MONSTER_EGG")) {
+			ItemMeta meta = item.getItemMeta();
+			if (meta instanceof SpawnEggMeta) {
+				SpawnEggMeta egg = (SpawnEggMeta) meta;
+				material = egg.getSpawnedType().name() + "_SPAWN_EGG";
+			}
+		}
 
-		return matchDefinedXMaterial(material, data)
-				.orElseThrow(() -> new IllegalArgumentException("Unsupported material from item: " + material + " (" + data + ')'));
+		// Potions used the items data value to store
+		// information about the type of potion in 1.8
+		if (!supports(9) && material.endsWith("ION")) {
+			// There's also 16000+ data value technique, but this is more reliable.
+			return Potion.fromItemStack(item).isSplash() ? SPLASH_POTION : POTION;
+		}
+
+		// Refer to the enum for info.
+		// Currently this is the only material with a non-zero data value
+		// that has been renamed after the flattening update.
+		// If this happens to more materials in the future,
+		// I might have to change then system.
+		if (Data.ISFLAT && !supports(14) && material.equals("CACTUS_GREEN")) return GREEN_DYE;
+
+		// Check FILLED_MAP enum for more info.
+		// if (!Data.ISFLAT && item.hasItemMeta() && item.getItemMeta() instanceof org.bukkit.inventory.meta.MapMeta) return FILLED_MAP;
+
+		// No orElseThrow, I don't want to deal with Java's final variable bullshit.
+		Optional<XMaterial> result = matchDefinedXMaterial(material, data);
+		if (result.isPresent()) return result.get();
+		throw new IllegalArgumentException("Unsupported material from item: " + material + " (" + data + ')');
 	}
 
 	/**
@@ -1701,14 +1778,15 @@ public enum XMaterial {
 	 *
 	 * @param name the formatted name of the material.
 	 * @param data the data value of the material. Is always 0 or {@link #UNKNOWN_DATA_VALUE} when {@link Data#ISFLAT}
+	 *
 	 * @return an XMaterial (with the same data value if specified)
 	 * @see #matchXMaterial(Material)
 	 * @see #matchXMaterial(int, byte)
 	 * @see #matchXMaterial(ItemStack)
 	 * @since 3.0.0
 	 */
-	@NotNull
-	protected static Optional<XMaterial> matchDefinedXMaterial(@NotNull String name, byte data) {
+	@Nonnull
+	protected static Optional<XMaterial> matchDefinedXMaterial(@Nonnull String name, byte data) {
 		// if (!Boolean.valueOf(Boolean.getBoolean(Boolean.TRUE.toString())).equals(Boolean.FALSE.booleanValue())) return null;
 		Boolean duplicated = null;
 		boolean isAMap = name.equalsIgnoreCase("MAP");
@@ -1726,8 +1804,7 @@ public enum XMaterial {
 			return (data >= 0 && isAMap) ? Optional.of(FILLED_MAP) : Optional.empty();
 		}
 
-		if (!Data.ISFLAT && oldXMaterial.isPlural() && (duplicated == null ? isDuplicated(name) : duplicated))
-			return getIfPresent(name);
+		if (!Data.ISFLAT && oldXMaterial.isPlural() && (duplicated == null ? isDuplicated(name) : duplicated)) return getIfPresent(name);
 		return Optional.of(oldXMaterial);
 	}
 
@@ -1739,10 +1816,11 @@ public enum XMaterial {
 	 * <p>{@code MELON, CARROT, POTATO, BEETROOT -> true}
 	 *
 	 * @param name the name of the material to check.
+	 *
 	 * @return true if there's a duplicated material for this material, otherwise false.
 	 * @since 2.0.0
 	 */
-	private static boolean isDuplicated(@NotNull String name) {
+	private static boolean isDuplicated(@Nonnull String name) {
 		// Don't use matchXMaterial() since this method is being called from matchXMaterial() itself and will cause a StackOverflowError.
 		return DUPLICATED.contains(name);
 	}
@@ -1753,6 +1831,7 @@ public enum XMaterial {
 	 *
 	 * @param id   the ID (Magic value) of the material.
 	 * @param data the data value of the material.
+	 *
 	 * @return a parsed XMaterial with the same ID and data value.
 	 * @see #matchXMaterial(ItemStack)
 	 * @since 2.0.0
@@ -1760,7 +1839,7 @@ public enum XMaterial {
 	 * which takes a really long time. Plugins should no longer support IDs. If you want, you can make a {@link Map} cache yourself.
 	 * This method obviously doesn't work for 1.13+ and will not be supported. This is only here for debugging purposes.
 	 */
-	@NotNull
+	@Nonnull
 	@Deprecated
 	public static Optional<XMaterial> matchXMaterial(int id, byte data) {
 		if (id < 0 || id > MAX_ID || data < 0) return Optional.empty();
@@ -1777,11 +1856,12 @@ public enum XMaterial {
 	 * the normal RegEx + String Methods approach for both formatted and unformatted material names.
 	 *
 	 * @param name the material name to modify.
+	 *
 	 * @return an enum name.
 	 * @since 2.0.0
 	 */
-	@NotNull
-	protected static String format(@NotNull String name) {
+	@Nonnull
+	protected static String format(@Nonnull String name) {
 		int len = name.length();
 		char[] chs = new char[len];
 		int count = 0;
@@ -1814,42 +1894,12 @@ public enum XMaterial {
 	 * Checks if the specified version is the same version or higher than the current server version.
 	 *
 	 * @param version the major version to be checked. "1." is ignored. E.g. 1.12 = 12 | 1.9 = 9
+	 *
 	 * @return true of the version is equal or higher than the current version.
 	 * @since 2.0.0
 	 */
 	public static boolean supports(int version) {
 		return Data.VERSION >= version;
-	}
-
-	/**
-	 * Gets the exact major version (..., 1.9, 1.10, ..., 1.14)
-	 * In most cases, you shouldn't be using this method.
-	 *
-	 * @param version Supports {@link Bukkit#getVersion()}, {@link Bukkit#getBukkitVersion()} and normal formats such as "1.14"
-	 * @return the exact major version.
-	 * @see #supports(int)
-	 * @see #getVersion()
-	 * @since 2.0.0
-	 */
-	@NotNull
-	public static String getMajorVersion(@NotNull String version) {
-		Validate.notEmpty(version, "Cannot get major Minecraft version from null or empty string");
-
-		// getVersion()
-		int index = version.lastIndexOf("MC:");
-		if (index != -1) {
-			version = version.substring(index + 4, version.length() - 1);
-		} else if (version.endsWith("SNAPSHOT")) {
-			// getBukkitVersion()
-			index = version.indexOf('-');
-			version = version.substring(0, index);
-		}
-
-		// 1.13.2, 1.14.4, etc...
-		int lastDot = version.lastIndexOf('.');
-		if (version.indexOf('.') != lastDot) version = version.substring(0, lastDot);
-
-		return version;
 	}
 
 	public String[] getLegacy() {
@@ -1911,6 +1961,7 @@ public enum XMaterial {
 	 * Want to learn RegEx? You can mess around in <a href="https://regexr.com/">RegExr</a> website.
 	 *
 	 * @param materials the material names to check base material on.
+	 *
 	 * @return true if one of the given material names is similar to the base material.
 	 * @since 3.1.1
 	 */
@@ -1927,7 +1978,15 @@ public enum XMaterial {
 			}
 			if (checker.startsWith("REGEX:")) {
 				comp = comp.substring(6);
-				Pattern pattern = CACHED_REGEX.getUnchecked(comp);
+				Pattern pattern = CACHED_REGEX.getIfPresent(comp);
+				if (pattern == null) {
+					try {
+						pattern = Pattern.compile(comp);
+						CACHED_REGEX.put(comp, pattern);
+					} catch (PatternSyntaxException ex) {
+						ex.printStackTrace();
+					}
+				}
 				if (pattern != null && pattern.matcher(name).matches()) return true;
 				continue;
 			}
@@ -1946,12 +2005,13 @@ public enum XMaterial {
 	 * Use {@link #parseItem()} instead when creating new ItemStacks.
 	 *
 	 * @param item the item to change its type.
+	 *
 	 * @see #parseItem()
 	 * @since 3.0.0
 	 */
-	@NotNull
+	@Nonnull
 	@SuppressWarnings("deprecation")
-	public ItemStack setType(@NotNull ItemStack item) {
+	public ItemStack setType(@Nonnull ItemStack item) {
 		Objects.requireNonNull(item, "Cannot set material for null ItemStack");
 		Material material = this.parseMaterial();
 		Objects.requireNonNull(material, () -> "Unsupported material: " + this.name());
@@ -1966,10 +2026,11 @@ public enum XMaterial {
 	 * All the values passed to this method will not be null or empty and are formatted correctly.
 	 *
 	 * @param name the material name to check.
+	 *
 	 * @return true if it's one of the legacy names, otherwise false.
 	 * @since 2.0.0
 	 */
-	private boolean anyMatchLegacy(@NotNull String name) {
+	private boolean anyMatchLegacy(@Nonnull String name) {
 		for (int i = this.legacy.length - 1; i >= 0; i--) {
 			if (name.equals(this.legacy[i])) return true;
 		}
@@ -1991,9 +2052,11 @@ public enum XMaterial {
 	 * @since 3.0.0
 	 */
 	@Override
-	@NotNull
+	@Nonnull
 	public String toString() {
-		return WordUtils.capitalize(this.name().replace('_', ' ').toLowerCase(Locale.ENGLISH));
+		return Arrays.stream(name().split("_"))
+				.map(t -> t.charAt(0) + t.substring(1).toLowerCase())
+				.collect(Collectors.joining(" "));
 	}
 
 	/**
@@ -2064,11 +2127,12 @@ public enum XMaterial {
 	 * Checks if an item has the same material (and data value on older versions).
 	 *
 	 * @param item item to check.
+	 *
 	 * @return true if the material is the same as the item's material (and data value if on older versions), otherwise false.
 	 * @since 1.0.0
 	 */
 	@SuppressWarnings("deprecation")
-	public boolean isSimilar(@NotNull ItemStack item) {
+	public boolean isSimilar(@Nonnull ItemStack item) {
 		Objects.requireNonNull(item, "Cannot compare with null ItemStack");
 		if (item.getType() != this.parseMaterial()) return false;
 		return Data.ISFLAT || item.getDurability() == this.data || item.getType().getMaxDurability() > 0;
@@ -2129,18 +2193,38 @@ public enum XMaterial {
 	}
 
 	/**
-	 * Used for datas that need to be accessed during enum initilization.
+	 * Custom
+	 */
+	public static Material quickMatch(String name) {
+		try {
+			return Material.valueOf(name);
+		} catch (Exception ex) {
+			return matchXMaterial(name).orElse(XMaterial.AIR).parseMaterial();
+		}
+	}
+
+	/**
+	 * Used for data that need to be accessed during enum initialization.
 	 *
 	 * @since 9.0.0
 	 */
 	private static final class Data {
 		/**
-		 * The current version of the server in the a form of a major version.
+		 * The current version of the server in the form of a major version.
 		 * If the static initialization for this fails, you know something's wrong with the server software.
 		 *
 		 * @since 1.0.0
 		 */
-		private static final int VERSION = Integer.parseInt(getMajorVersion(Bukkit.getVersion()).substring(2));
+		private static final int VERSION;
+
+		static { // This needs to be right below VERSION because of initialization order.
+			String version = Bukkit.getVersion();
+			Matcher matcher = Pattern.compile("MC: \\d\\.(\\d+)").matcher(version);
+
+			if (matcher.find()) VERSION = Integer.parseInt(matcher.group(1));
+			else throw new IllegalArgumentException("Failed to parse server version from: " + version);
+		}
+
 		/**
 		 * Cached result if the server version is after the v1.13 flattening update.
 		 *
