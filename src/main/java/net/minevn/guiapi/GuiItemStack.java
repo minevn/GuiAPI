@@ -84,7 +84,7 @@ public class GuiItemStack {
 			im.addEnchant(Enchantment.DURABILITY, 1, true);
 		}
 		im.setUnbreakable(true);
-		im.addItemFlags(ItemFlag.HIDE_UNBREAKABLE, ItemFlag.HIDE_ATTRIBUTES);
+		im.addItemFlags(ItemFlag.HIDE_UNBREAKABLE, ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS);
 		item.setItemMeta(im);
 	}
 
